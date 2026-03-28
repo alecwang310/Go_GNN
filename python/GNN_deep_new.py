@@ -7,7 +7,7 @@ from torch_geometric.nn import global_mean_pool
 class GoGNN(nn.Module):
     def __init__(self, stone_in=18, string_in=2, global_in=19,
                  stone_dim=128, hyper_dim=512, dropout=0.0, 
-                 extraction_heads=4, reasoning_heads=2, reasoning_steps=14):
+                 extraction_heads=8, reasoning_heads=8, reasoning_steps=14):
         super().__init__()
         
         self.reasoning_steps = reasoning_steps

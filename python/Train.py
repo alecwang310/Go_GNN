@@ -200,7 +200,7 @@ class GoTrainer:
         print(f"--- Checkpoint saved: {filename} ---")
 
     def load_checkpoint(self, filename, force_lr = None, reinit_opt = True):
-        reinit_opt = True
+        reinit_opt = False
 
         if os.path.isfile(filename):
             print(f"--- Loading Checkpoint: {filename} ---")
@@ -418,10 +418,10 @@ def run_training(mode):
             trainer.scheduler.step(avg_train_loss)
 
             # Save Checkpoints
-            trainer.save_checkpoint(epoch, avg_train_loss, r'D:/Code/GNN/models/go_gnn_combined_deep_{epoch + 1}.pth')
+            trainer.save_checkpoint(epoch, avg_train_loss, r'D:/Code/GNN/models/go_gnn_combined_deep_new.pth')
             
             if avg_val_loss < best_val_loss:
-                trainer.save_checkpoint(epoch, avg_val_loss, r'D:/Code/GNN/models/best_go_gnn_combined_deep.pth')
+                trainer.save_checkpoint(epoch, avg_val_loss, r'D:/Code/GNN/models/best_go_gnn_combined_deep_new.pth')
                 best_val_loss = avg_val_loss
 
             # Final Detailed Printout
