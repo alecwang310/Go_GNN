@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GATv2Conv, HeteroConv
+import os
 
 class GoGNN(nn.Module):
     def __init__(self, stone_in=18, string_in=2, global_in=19,
