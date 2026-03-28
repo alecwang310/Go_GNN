@@ -3,3 +3,6 @@ cpp
 cpp/build
 **/__pycache__
 interactive/gtp2ogs-main
+logs
+models
+traced_models
