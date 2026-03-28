@@ -2,3 +2,4 @@ data
 cpp
 cpp/build
 **/__pycache__
+interactive/gtp2ogs-main
