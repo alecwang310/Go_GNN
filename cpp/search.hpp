@@ -36,7 +36,7 @@ class MCTS {
 public:
     MCTS(const std::string& model_path, const std::string& device_str = "cpu",
          float komi = 7.5f, int num_simulations = 200, float cpuct = 2.0f,
-         float fpu_value = 1.25f)
+         float fpu_value = 0.25f)
         : komi_(komi), num_simulations_(num_simulations), cpuct_(cpuct), fpu_value_(fpu_value),
           device_((device_str == "cuda" && torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU)
     {
@@ -44,6 +44,11 @@ public:
         model_.to(device_);
         model_.eval();
     }
+
+    // Diagnostics populated after search()
+    float last_nn_value = 0.0f;
+    std::vector<std::pair<float, int>> last_nn_priors;   // (prior, move) desc
+    std::vector<std::pair<int, int>> last_mcts_visits;   // (visits, move) desc
 
     int search(GoBoard& board, int8_t current_player) {
 
@@ -55,6 +60,7 @@ public:
 
         for (int i = 0; i < num_simulations_; ++i) {
             bool debug = (i == 0);
+            bool capture_nn = (i == 0);
             // 1. Select
             GoBoard sim_board = board;
             MCTSNode* node = &root;
@@ -62,19 +68,38 @@ public:
 
             while (node->is_expanded && !node->is_terminal && !node->children.empty()) {
                 MCTSNode* best_child = select_child(node, sim_player);
-                sim_board.play_move(best_child->move, sim_player);
+                bool ok = sim_board.play_move(best_child->move, sim_player);
+                if (!ok) {
+                    // Move became illegal (e.g. ko changed). Mark as terminal
+                    // with a bad value so MCTS avoids this path.
+                    node->is_terminal = true;
+                    node->terminal_value = -1.0f;
+                    break;
+                }
                 sim_player = 3 - sim_player;
                 node = best_child;
             }
 
             // 2. Expand & Evaluate
             float value;
-            if (is_game_over(sim_board, sim_player)) {
+            if (node->is_terminal) {
+                value = node->terminal_value;
+            } else if (is_game_over(sim_board, sim_player)) {
                 value = get_terminal_value(sim_board, sim_player);
                 node->is_terminal = true;
                 node->terminal_value = value;
             } else {
                 value = expand_and_evaluate(node, sim_board, sim_player, debug);
+                // Capture NN priors from the root expansion (first sim that hits root)
+                if (capture_nn && node == &root && !root.children.empty()) {
+                    last_nn_value = value;
+                    last_nn_priors.clear();
+                    for (auto& child : root.children) {
+                        last_nn_priors.push_back({child->prior, child->move});
+                    }
+                    std::sort(last_nn_priors.begin(), last_nn_priors.end(),
+                              [](auto& a, auto& b) { return a.first > b.first; });
+                }
             }
 
             // 3. Backup
@@ -90,6 +115,14 @@ public:
                 best = child.get();
             }
         }
+
+        // Collect MCTS visit stats
+        last_mcts_visits.clear();
+        for (auto& child : root.children) {
+            last_mcts_visits.push_back({child->visits, child->move});
+        }
+        std::sort(last_mcts_visits.begin(), last_mcts_visits.end(),
+                  [](auto& a, auto& b) { return a.first > b.first; });
 
         return best ? best->move : -1;
     }
@@ -140,10 +173,10 @@ private:
             } else {
                 q = child->value_sum / child->visits;
             }
-            // Value is stored from perspective of the player who moved.
-            // For selection, we want the parent's perspective, so negate.
+            // Value is stored from perspective of the player who moved (= parent's
+            // perspective), so no negation needed — higher q means better for parent.
             float u = cpuct_ * child->prior * sqrt_parent / (1.0f + child->visits);
-            float score = -q + u; // negate because value is from child's perspective
+            float score = q + u;
 
             if (score > best_score) {
                 best_score = score;
@@ -163,6 +196,7 @@ private:
         inputs.push_back(gd.stone_x);
         inputs.push_back(gd.string_x);
         inputs.push_back(gd.global_x);
+        inputs.push_back(gd.string_batch_index);
         inputs.push_back(gd.e_s_a_s);
         inputs.push_back(gd.e_s_b_str);
         inputs.push_back(gd.e_str_c_s);
@@ -224,25 +258,6 @@ private:
             for (auto& child : node->children) {
                 child->prior /= total_prior;
             }
-        }
-
-        if (debug) {
-            std::vector<std::pair<float, int>> sorted;
-            for (auto& child : node->children) sorted.push_back({child->prior, child->move});
-            std::sort(sorted.begin(), sorted.end(), [](auto& a, auto& b) { return a.first > b.first; });
-            std::cout << "  [sim0] Top priors after normalize:\n";
-            for (int i = 0; i < std::min(10, (int)sorted.size()); ++i) {
-                auto [p, pos] = sorted[i];
-                std::string name = (pos == -1) ? "pass" : [&]() {
-                    int rr = pos / GoBoard::PADDED_SIZE - 1;
-                    int cc = pos % GoBoard::PADDED_SIZE - 1;
-                    char col = (cc >= 8) ? ('A' + cc + 1) : ('A' + cc);
-                    return std::string(1, col) + std::to_string(rr + 1);
-                }();
-                std::cout << "    " << name << " = " << p << "\n";
-            }
-            std::cout << "  [sim0] total_prior before norm: " << total_prior << "\n";
-            std::cout << "  [sim0] children count: " << node->children.size() << "\n";
         }
 
         return value;

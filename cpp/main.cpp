@@ -94,6 +94,7 @@ int nn_best_move(GoBoard& board, int8_t current_player,
     inputs.push_back(gd.stone_x);
     inputs.push_back(gd.string_x);
     inputs.push_back(gd.global_x);
+    inputs.push_back(gd.string_batch_index);
     inputs.push_back(gd.e_s_a_s);
     inputs.push_back(gd.e_s_b_str);
     inputs.push_back(gd.e_str_c_s);
@@ -204,7 +205,7 @@ int main() {
     // Game setup
     GoBoard board;
     float komi = 7.5f;
-    int num_simulations = 200;
+    int num_simulations = 400;
     int8_t human_color = BLACK;
     int8_t bot_color = WHITE;
     int consecutive_passes = 0;
@@ -318,6 +319,28 @@ int main() {
                 std::cout << "Bot passes. (" << elapsed << "s)\n";
             } else {
                 std::cout << "Bot plays: " << move_to_string(bot_move, board) << " (" << elapsed << "s)\n";
+            }
+
+            if (!use_nn_only) {
+                // Print NN win rate
+                std::cout << "  NN win rate (" << (current_player == BLACK ? "Black" : "White")
+                          << "'s pov): " << mcts.last_nn_value << "\n";
+
+                // Print top 10 NN priors
+                std::cout << "  Top 10 NN moves (prior):\n";
+                for (int i = 0; i < std::min(10, (int)mcts.last_nn_priors.size()); ++i) {
+                    auto [p, pos] = mcts.last_nn_priors[i];
+                    std::string name = move_to_string(pos, board);
+                    std::cout << "    " << (i + 1) << ". " << name << " = " << p << "\n";
+                }
+
+                // Print top 10 MCTS moves
+                std::cout << "  Top 10 MCTS moves (visits):\n";
+                for (int i = 0; i < std::min(10, (int)mcts.last_mcts_visits.size()); ++i) {
+                    auto [v, pos] = mcts.last_mcts_visits[i];
+                    std::string name = move_to_string(pos, board);
+                    std::cout << "    " << (i + 1) << ". " << name << " = " << v << "\n";
+                }
             }
 
             board.play_move(bot_move, current_player);
