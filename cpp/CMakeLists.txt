@@ -21,4 +21,5 @@ target_link_libraries(gomcts PRIVATE "${TORCH_LIBRARIES}" pybind11::headers pybi
 target_link_libraries(gomcts PRIVATE Python3::Module)
 set_property(TARGET gomcts PROPERTY CXX_STANDARD 17)
 set_property(TARGET gomcts PROPERTY PREFIX "")
+
 set_property(TARGET gomcts PROPERTY SUFFIX ".pyd")

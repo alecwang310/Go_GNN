@@ -25,6 +25,36 @@ public:
     // Neighbors: Up, Down, Left, Right
     const int adj[4] = { -PADDED_SIZE, PADDED_SIZE, -1, 1 };
 
+    GoBoard& operator=(const GoBoard& other) {
+        if (this != &other) {
+            std::copy(other.board, other.board + BOARD_ARRAY_SIZE, board);
+            last_ko_pos = other.last_ko_pos;
+            komi = other.komi;
+            std::copy(other.history_moves, other.history_moves + 5, history_moves);
+            std::copy(other.history_passes, other.history_passes + 5, history_passes);
+        }
+        return *this;
+    }
+
+    GoBoard& operator=(GoBoard&& other) noexcept {
+        if (this != &other) {
+            std::copy(other.board, other.board + BOARD_ARRAY_SIZE, board);
+            last_ko_pos = other.last_ko_pos;
+            komi = other.komi;
+            std::copy(other.history_moves, other.history_moves + 5, history_moves);
+            std::copy(other.history_passes, other.history_passes + 5, history_passes);
+        }
+        return *this;
+    }
+
+    GoBoard(const GoBoard& other) {
+        std::copy(other.board, other.board + BOARD_ARRAY_SIZE, board);
+        last_ko_pos = other.last_ko_pos;
+        komi = other.komi;
+        std::copy(other.history_moves, other.history_moves + 5, history_moves);
+        std::copy(other.history_passes, other.history_passes + 5, history_passes);
+    }
+
     GoBoard() {
         reset();
     }

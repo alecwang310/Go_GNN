@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from GNN_deep import GoGNN
+from GNN_deep_new import GoGNN
 
 class GoGNNExportWrapper(nn.Module):
     """
@@ -11,17 +11,17 @@ class GoGNNExportWrapper(nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, stone_x, string_x, global_x, 
-                edge_s_a_s, edge_s_b_str, edge_str_c_s, 
+    def forward(self, stone_x, string_x, global_x, string_batch_index,
+                edge_s_a_s, edge_s_b_str, edge_str_c_s,
                 edge_str_a_str, edge_str_r_g, edge_g_i_str):
-        
+
         # 1. Reconstruct Node Dictionary
         x_dict = {
             'stone': stone_x,
             'string': string_x,
             'global_node': global_x
         }
-        
+
         # 2. Reconstruct Edge Dictionary (with the tuple keys PyG expects)
         edge_index_dict = {
             ('stone', 'adjacent', 'stone'): edge_s_a_s,
@@ -31,11 +31,11 @@ class GoGNNExportWrapper(nn.Module):
             ('string', 'reports_to', 'global_node'): edge_str_r_g,
             ('global_node', 'influences', 'string'): edge_g_i_str
         }
-        
-        return self.model(x_dict, edge_index_dict)
+
+        return self.model(x_dict, edge_index_dict, string_batch_index)
 
 if __name__ == "__main__":
-    base_model = GoGNN()
+    base_model = GoGNN(extraction_heads=8, reasoning_heads=8)
 
     print(f"--- Loading Checkpoint: temp.pth ---")
     checkpoint = torch.load(r'D:/Code/GNN/models/temp.pth', map_location=next(base_model.parameters()).device, weights_only=False)
@@ -67,6 +67,7 @@ if __name__ == "__main__":
     stone_x = torch.randn(N, 18).to(device)
     string_x = torch.randn(S, 2).to(device)
     global_x = torch.randn(G, 19).to(device)
+    string_batch_index = torch.zeros(S, dtype=torch.long).to(device)
 
     # Dummy edge indices [2, num_edges]
     e_s_a_s = torch.randint(0, N, (2, 500)).to(device)
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     # Trace the model
     traced_script_module = torch.jit.trace(wrapper_model, (
-        stone_x, string_x, global_x, 
+        stone_x, string_x, global_x, string_batch_index,
         e_s_a_s, e_s_b_str, e_str_c_s, e_str_a_str, e_str_r_g, e_g_i_str
     ))
 

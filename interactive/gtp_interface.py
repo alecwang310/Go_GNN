@@ -9,7 +9,7 @@ if root_path not in sys.path:
 
 from python.Data_extract import KataGoData
 from python.GNN import GoGNN as gnn_shallow
-from python.GNN_deep import GoGNN as gnn_deep
+from python.GNN_deep_new import GoGNN as gnn_deep_new
 
 class GoGNN_GTP_Engine:
     def __init__(self, model_path, size=19):
@@ -25,10 +25,10 @@ class GoGNN_GTP_Engine:
 
         # 2. Load Model
         print(f"Loading model to {self.device}...", file=sys.stderr)
-        self.model = gnn_deep().to(self.device)
+        self.model = gnn_deep_new().to(self.device)
         checkpoint = torch.load(model_path, map_location=self.device)
         
-        # Handling the _orig_mod prefix if you used torch.compile
+        # Handling the _orig_mod prefix if torch.compile is used
         state_dict = checkpoint['model_state_dict']
         from collections import OrderedDict
         new_state_dict = OrderedDict()
@@ -186,7 +186,8 @@ class GoGNN_GTP_Engine:
                 
                 with torch.no_grad():
                     with torch.amp.autocast(self.device.type):
-                        p_board, p_pass, _, _ = self.model(batch.x_dict, batch.edge_index_dict)
+                        s_batch = batch['string'].batch
+                        p_board, p_pass, _, _ = self.model(batch.x_dict, batch.edge_index_dict, s_batch)
                 
                 # Decision logic
                 p_full = torch.cat([p_board.view(1, 361), p_pass.view(1, 1)], dim=1)
@@ -207,5 +208,5 @@ class GoGNN_GTP_Engine:
             else: self.respond("unknown command", False)
 
 if __name__ == "__main__":
-    bot = GoGNN_GTP_Engine(r"D:/Code/GNN/models/deep_old_final.pth")
+    bot = GoGNN_GTP_Engine(r"D:/Code/GNN/models/temp.pth")
     bot.run()

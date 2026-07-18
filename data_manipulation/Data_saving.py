@@ -121,8 +121,8 @@ def move_to_slow_drive(src_dir, dest_dir):
 
 def main_pipeline():
     # --- Paths Setup ---
-    raw_data_path = r'D:/Code/GNN/data/raw_expanded_3'
-    final_dest_dir = r'E:/graphs'
+    raw_data_path = r'D:/Code/GNN/data/25-12-expanded'
+    final_dest_dir = r'F:/graphs-25-12'
     
     # Fast SSD working directories
     fast_active_dir = r'D:/Code/GNN/data/staging_active'

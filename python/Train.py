@@ -320,10 +320,11 @@ def run_training(mode):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # --- Paths Setup ---
-    src_dir = r'E:/graphs'
+    src_dir = r'F:/graphs-25-12'
     buf1 = r'D:/Code/GNN/data/graphs_1'
     buf2 = r'D:/Code/GNN/data/graphs_2'
     val_dir = r'D:/Code/GNN/data/val_graphs' # Dedicated fast-drive folder for validation
+    test_dir = r'D:/Code/GNN/data/test_graphs'
     
     batch_size = 30 # Number of files to hold in the SSD buffer at once
     if mode == "production":
@@ -347,8 +348,8 @@ def run_training(mode):
         trainer = GoTrainer(model)
         trainer.set_freeze_trunk(False)
 
-        resume_file = r'none'
-        start_epoch, _ = trainer.load_checkpoint(resume_file, force_lr=0.0001)
+        resume_file = r'D:/Code/GNN/models/temp.pth'
+        start_epoch, _ = trainer.load_checkpoint(resume_file, force_lr=0.00001)
 
         compiled_model = torch.compile(
             trainer.model,
@@ -433,15 +434,15 @@ def run_training(mode):
     if mode == "test":
         print(">>> RUNNING IN TEST MODE: Skipping disk I/O, loading directly from graphs_1")
         # In test mode, we only care about what's already in buf1
-        train_files_src = [f for f in os.listdir(buf2) if f.endswith('.pt')]
+        train_files_src = [f for f in os.listdir(test_dir) if f.endswith('.pt')]
         val_files = [f for f in os.listdir(val_dir) if f.endswith('.pt')]
 
         model = GoGNN().to(device)
         trainer = GoTrainer(model)
         trainer.set_freeze_trunk(False)
 
-        resume_file = r'none'
-        start_epoch, _ = trainer.load_checkpoint(resume_file, force_lr=0.0001)
+        resume_file = r'D:/Code/GNN/models/best_go_gnn_combined_deep_new.pth'
+        start_epoch, _ = trainer.load_checkpoint(resume_file, force_lr=0.000025)
 
         compiled_model = torch.compile(
             trainer.model,
@@ -458,9 +459,9 @@ def run_training(mode):
         for epoch in range(start_epoch, num_ep):
             print(f"\n--- Starting epoch {epoch+1} ---")
             start = time.time()
-            print(f"  Training directly from {buf2}...")
+            print(f"  Training directly from {test_dir}...")
 
-            l_total, l_pol, l_val, l_own = trainer.train_epoch(device, buf2, train_files_src)
+            l_total, l_pol, l_val, l_own = trainer.train_epoch(device, test_dir, train_files_src)
             avg_train_loss, avg_pol_loss, avg_val_loss_train, avg_own_loss_train = l_total, l_pol, l_val, l_own
 
             print(f"\n>>> Epoch {epoch+1} Summary ({mode}) <<<")

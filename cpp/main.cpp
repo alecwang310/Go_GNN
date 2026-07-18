@@ -120,7 +120,6 @@ int nn_best_move(GoBoard& board, int8_t current_player,
     auto probs_acc = probs_cpu.accessor<float, 1>();
 
     float pass_prior = probs_acc[361];
-    std::cout << "  NN pass prior (softmax): " << pass_prior << "\n";
 
     // Collect legal moves with their priors
     std::vector<std::pair<float, int>> candidates;
@@ -206,16 +205,41 @@ int main() {
     GoBoard board;
     float komi = 7.5f;
     int num_simulations = 400;
+    int num_threads = 16;
     int8_t human_color = BLACK;
     int8_t bot_color = WHITE;
     int consecutive_passes = 0;
 
-    MCTS mcts(model_path, device_str, komi, num_simulations);
+    // Ask for sims
+    std::cout << "Number of simulations [" << num_simulations << "]: ";
+    std::string sims_input;
+    std::getline(std::cin, sims_input);
+    if (!sims_input.empty()) {
+        try {
+            int s = std::stoi(sims_input);
+            if (s > 0) num_simulations = s;
+        } catch (...) {}
+    }
+
+    // Ask for threads
+    std::cout << "Number of threads [" << num_threads << "]: ";
+    std::string threads_input;
+    std::getline(std::cin, threads_input);
+    if (!threads_input.empty()) {
+        try {
+            int t = std::stoi(threads_input);
+            if (t > 0) num_threads = t;
+        } catch (...) {}
+    }
+
+    MCTS mcts(model_path, device_str, komi, num_simulations, 3.5f, 0.25f, num_threads);
 
     std::cout << "=== Go AI Terminal ===\n";
     std::cout << "Commands during play:\n";
     std::cout << "  sims      - show current simulation count\n";
-    std::cout << "  sims <N>  - change simulation count (current: " << num_simulations << ")\n";
+    std::cout << "  sims <N>  - change simulation count\n";
+    std::cout << "  threads   - show current thread count\n";
+    std::cout << "  threads <N> - change thread count\n";
     std::cout << "  resign    - resign the game\n";
     std::cout << "  pass      - pass your turn\n";
     std::cout << "  <move>    - e.g. D4, Q16, etc. (no I column)\n\n";
@@ -235,6 +259,7 @@ int main() {
     int8_t current_player = BLACK;
     bool game_over = false;
 
+    try {
     while (!game_over) {
         print_board(board, human_color);
 
@@ -267,6 +292,26 @@ int main() {
                     }
                 } else {
                     std::cout << "Current simulation count: " << num_simulations << "\n";
+                }
+                continue;
+            }
+
+            if (input.substr(0, 7) == "threads") {
+                if (input.size() > 8) {
+                    try {
+                        int new_threads = std::stoi(input.substr(8));
+                        if (new_threads > 0) {
+                            num_threads = new_threads;
+                            mcts.set_num_threads(num_threads);
+                            std::cout << "Thread count set to " << num_threads << "\n";
+                        } else {
+                            std::cout << "Thread count must be > 0\n";
+                        }
+                    } catch (...) {
+                        std::cout << "Usage: threads <number>\n";
+                    }
+                } else {
+                    std::cout << "Current thread count: " << num_threads << "\n";
                 }
                 continue;
             }
@@ -308,7 +353,8 @@ int main() {
                 std::cout << "Bot evaluating (NN only)...\n";
                 bot_move = nn_best_move(board, current_player, module, device, komi);
             } else {
-                std::cout << "Bot is thinking (" << num_simulations << " simulations)...\n";
+                std::cout << "Bot is thinking (" << num_simulations << " sims, "
+                          << num_threads << " threads)...\n";
                 bot_move = mcts.search(board, current_player);
             }
 
@@ -365,6 +411,16 @@ int main() {
         }
     }
 
+    } // end try
+    catch (const std::exception& e) {
+        std::cerr << "\nFATAL ERROR: " << e.what() << "\n";
+    }
+    catch (...) {
+        std::cerr << "\nFATAL ERROR: unknown exception\n";
+    }
+
     std::cout << "\nThanks for playing!\n";
+    std::cout << "Press Enter to exit...";
+    std::cin.get();
     return 0;
 }

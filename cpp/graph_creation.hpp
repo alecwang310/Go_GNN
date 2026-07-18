@@ -10,7 +10,7 @@
 #include "goboard.hpp" 
 
 struct GraphData {
-    torch::Tensor stone_x, string_x, global_x;
+    torch::Tensor stone_x, string_x, global_x, string_batch_index;
     torch::Tensor e_s_a_s, e_s_b_str, e_str_c_s;
     torch::Tensor e_str_a_str, e_str_r_g, e_g_i_str;
 };
@@ -207,6 +207,7 @@ public:
         for(int i=0; i<string_count; ++i) { g_u.push_back(i); g_v.push_back(0); }
         gd.e_str_r_g = torch::stack({torch::tensor(g_u, long_opts), torch::tensor(g_v, long_opts)});
         gd.e_g_i_str = gd.e_str_r_g.flip(0);
+        gd.string_batch_index = torch::zeros({std::max(1, string_count)}, long_opts);
 
         return gd;
     }
